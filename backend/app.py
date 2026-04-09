@@ -123,7 +123,7 @@ def build_ai_prompt(courses, user_input, electives_taken):
     {{
       "semester": 5,
       "courses": [
-        {{"name": "课程名称", "type": "课程类别", "credits": 3, "reason": "选择理由"}}
+        {{"name": "课程名称", "type": "课程类别", "credits": 3}}
       ]
     }}
   ],

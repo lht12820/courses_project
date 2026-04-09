@@ -278,8 +278,7 @@ const generatePlan = async () => {
         groupedPlan[semKey] = semesterPlan.courses.map(course => ({
           name: course.name,
           type: course.type,
-          credits: course.credits,
-          reason: course.reason || ''
+          credits: course.credits
         }))
       })
       
