@@ -96,16 +96,16 @@ def build_ai_prompt(courses, user_input, electives_taken):
 - 已修课程：{', '.join(electives_taken) if electives_taken else '无'}
 
 ## 可选课程库
-### 新生项目式课程（必选1门，仅选1门）
+### 新生项目式课程
 {json.dumps(courses_by_type['新生项目式课程'], ensure_ascii=False, indent=2)}
 
-### 面向对象程序设计课程（必选1门，仅选1门）
+### 面向对象程序设计课程
 {json.dumps(courses_by_type['面向对象程序设计课程'], ensure_ascii=False, indent=2)}
 
-### 学科前沿课（必选1门，仅选1门）
+### 学科前沿课
 {json.dumps(courses_by_type['学科前沿课'], ensure_ascii=False, indent=2)}
 
-### 专业方向选修课（根据培养方向选择，每学期最多2门）
+### 专业方向选修课
 {json.dumps(courses_by_type['专业方向选修课'], ensure_ascii=False, indent=2)}
 
 ## 规划规则
@@ -195,7 +195,19 @@ def ai_plan():
             max_tokens=2000,
             stream=False
         )
+         # 获取 token 使用量
+        usage = response.usage
+        prompt_tokens = usage.prompt_tokens
+        completion_tokens = usage.completion_tokens
+        total_tokens = usage.total_tokens
         
+        # 打印 token 统计
+        print(f"\n{'='*50}")
+        print(f"📊 Token 使用统计:")
+        print(f"   ├─ 输入 token 数 (prompt): {prompt_tokens}")
+        print(f"   ├─ 输出 token 数 (completion): {completion_tokens}")
+        print(f"   └─ 总 token 数: {total_tokens}")
+        print(f"{'='*50}\n")
         ai_response = response.choices[0].message.content
         print(f"📥 AI 响应: {ai_response[:200]}...")
         
