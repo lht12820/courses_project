@@ -316,7 +316,8 @@ def ai_plan():
         prompt_tokens_details = getattr(usage, 'prompt_tokens_details', None)
         cached_tokens = 0
         if prompt_tokens_details:
-            cached_tokens = getattr(prompt_tokens_details, 'cached_tokens', 0)
+            # 正确的字段名是 prompt_cache_hit_tokens
+            cached_tokens = getattr(prompt_tokens_details, 'prompt_cache_hit_tokens', 0)
         
         # 打印 token 统计
         print(f"\n{'='*50}")
