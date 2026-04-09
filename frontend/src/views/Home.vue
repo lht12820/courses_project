@@ -87,7 +87,10 @@
           <div><strong>剩余学期：</strong>{{ planResult.summary.remaining_semesters.join('、') }}学期</div>
         </div>
       </div>
-
+      
+      <div v-if="planResult.summary.ai_message" class="ai-message">
+  <strong>🤖 AI 规划说明：</strong> {{ planResult.summary.ai_message }}
+</div>
       <div class="plan-detail">
         <div v-for="(courses, semester) in planResult.plan" :key="semester" class="semester-block">
           <h3>{{ semester }}</h3>
@@ -255,26 +258,51 @@ const generatePlan = async () => {
     major: form.value.major,
     semester: form.value.semester,
     electives: electives,
-    direction: form.value.direction  // 直接使用，已被 watch 更新
+    direction: form.value.direction
   }
 
-
   try {
-    const response = await axios.post('/api/plan', requestData, {
-      timeout: 30000
+    // 优先使用 AI 规划接口
+    const response = await axios.post('/api/ai-plan', requestData, {
+      timeout: 60000  // AI 调用可能需要更长时间，设为60秒
     })
 
     if (response.data.success) {
-      planResult.value = response.data
+      // 转换 AI 返回的数据格式为前端展示格式
+      const planData = response.data
+      
+      // 将 AI 返回的 plan 数组转换为按学期分组的对象
+      const groupedPlan = {}
+      planData.plan.forEach(semesterPlan => {
+        const semKey = `第${semesterPlan.semester}学期`
+        groupedPlan[semKey] = semesterPlan.courses.map(course => ({
+          name: course.name,
+          type: course.type,
+          credits: course.credits,
+          reason: course.reason || ''
+        }))
+      })
+      
+      planResult.value = {
+        plan: groupedPlan,
+        summary: {
+          current_semester: form.value.semester,
+          direction: form.value.direction || '通用',
+          total_courses: planData.summary?.total_courses || 0,
+          total_credits: planData.summary?.total_credits || 0,
+          remaining_semesters: Object.keys(groupedPlan).map(s => parseInt(s.match(/\d+/)[0])),
+          ai_message: planData.summary?.message || ''
+        }
+      }
     } else {
-      errorMsg.value = response.data.error || '生成失败'
+      errorMsg.value = response.data.error || 'AI 规划失败'
     }
   } catch (err) {
-    console.error('请求失败:', err)
+    console.error('AI 规划请求失败:', err)
     if (err.response) {
       errorMsg.value = err.response.data.error || '服务器错误'
     } else if (err.code === 'ECONNABORTED') {
-      errorMsg.value = '请求超时，请重试'
+      errorMsg.value = '请求超时，AI 响应时间较长，请重试'
     } else {
       errorMsg.value = '连接后端失败，请确认 Flask 是否在运行'
     }
@@ -485,18 +513,45 @@ h1 {
 .course-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
-.course-table th, .course-table td {
+.course-table th,
+.course-table td {
   padding: 10px;
   text-align: left;
   border-bottom: 1px solid #eee;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .course-table th {
   background: #f5f5f5;
   font-weight: bold;
 }
+
+/* 固定列宽 */
+.course-table th:nth-child(1),
+.course-table td:nth-child(1) {
+  width: 35%;
+}
+
+.course-table th:nth-child(2),
+.course-table td:nth-child(2) {
+  width: 20%;
+}
+
+.course-table th:nth-child(3),
+.course-table td:nth-child(3) {
+  width: 10%;
+}
+
+.course-table th:nth-child(4),
+.course-table td:nth-child(4) {
+  width: 35%;
+}
+
 
 .course-name {
   font-weight: 500;
@@ -542,15 +597,63 @@ h1 {
 }
 
 .full-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
   max-height: 500px;
   overflow-y: auto;
   display: block;
+}
+
+.full-table th,
+.full-table td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.full-table th {
+  background: #f5f5f5;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
 }
 
 .full-table thead {
   position: sticky;
   top: 0;
   background: white;
+}
+
+/* 全量表格列宽 */
+.full-table th:nth-child(1),
+.full-table td:nth-child(1) {
+  width: 35%;
+}
+
+.full-table th:nth-child(2),
+.full-table td:nth-child(2) {
+  width: 15%;
+}
+
+.full-table th:nth-child(3),
+.full-table td:nth-child(3) {
+  width: 8%;
+}
+
+.full-table th:nth-child(4),
+.full-table td:nth-child(4) {
+  width: 12%;
+}
+
+.full-table th:nth-child(5),
+.full-table td:nth-child(5) {
+  width: 30%;
 }
 
 .loading {
@@ -593,5 +696,14 @@ h1 {
 .direction-input input:focus {
   outline: none;
   border-color: #667eea;
+}
+.ai-message {
+  background: #e8eaf6;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  border-left: 4px solid #667eea;
+  font-size: 14px;
+  color: #333;
 }
 </style>
