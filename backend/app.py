@@ -137,6 +137,100 @@ def build_ai_prompt(courses, user_input, electives_taken):
 请开始规划。"""
     
     return prompt
+def build_courses_snapshot(courses):
+    """
+    构建课程快照（不按学期筛选，包含所有课程）
+    """
+    snapshot = []
+    for c in courses:
+        snapshot.append({
+            'name': c['课程名称'],
+            'type': c['课程类别'],
+            'semester': c['开课学期'],
+            'credits': c['学分'],
+            'direction': c['专业方向']
+        })
+    # 按固定规则排序，确保字符串完全一致
+    snapshot.sort(key=lambda x: (x['semester'], x['name'], x['type']))
+    return snapshot
+
+def build_system_prompt(courses_snapshot):
+    """
+    构建 system prompt（静态部分，包含完整课程库）
+    """
+    # 按类别整理课程
+    courses_by_type = {
+        '新生项目式课程': [],
+        '面向对象程序设计课程': [],
+        '学科前沿课': [],
+        '专业方向选修课': []
+    }
+    
+    for c in courses_snapshot:
+        category = c['type']
+        if category in courses_by_type:
+            courses_by_type[category].append(c)
+    
+    # 对每类课程内的列表排序
+    for cat in courses_by_type:
+        courses_by_type[cat].sort(key=lambda x: (x['name'], x['semester']))
+    
+    system_prompt = f"""你是一个计算机专业的课程规划专家。请严格根据以下完整课程库和规划规则，为学生制定剩余的选修课程规划。
+
+## 完整课程库（唯一依据，所有课程都在这里）
+### 新生项目式课程（每门课都有开课学期，必须选开课学期>=当前学期的）
+{json.dumps(courses_by_type['新生项目式课程'], ensure_ascii=False, indent=2)}
+
+### 面向对象程序设计课程（每门课都有开课学期，必须选开课学期>=当前学期的）
+{json.dumps(courses_by_type['面向对象程序设计课程'], ensure_ascii=False, indent=2)}
+
+### 学科前沿课（每门课都有开课学期，必须选开课学期>=当前学期的）
+{json.dumps(courses_by_type['学科前沿课'], ensure_ascii=False, indent=2)}
+
+### 专业方向选修课（每门课都有开课学期，必须选开课学期>=当前学期的）
+{json.dumps(courses_by_type['专业方向选修课'], ensure_ascii=False, indent=2)}
+
+## 规划规则
+1. **强制要求**：新生项目课、面向对象程序设计课、学科前沿课，三类课程各必选且仅选1门
+2. **学期限制**：每学期最多从课程库里选2门课程（可以不选）
+3. **开课学期**：只能选择开课学期 >= 当前学期的课程（重要！）
+4. **方向匹配**：优先选择与学生培养方向匹配的专业方向选修课
+5. **学分平衡**：各学期学分分布尽量均衡
+
+## 输出格式
+请严格按照以下 JSON 格式输出，不要添加任何额外文字：
+
+{{
+  "plan": [
+    {{
+      "semester": 5,
+      "courses": [
+        {{"name": "课程名称", "type": "课程类别", "credits": 3}}
+      ]
+    }}
+  ],
+  "summary": {{
+    "total_courses": 8,
+    "total_credits": 24,
+    "message": "规划说明"
+  }}
+}}"""
+    
+    return system_prompt
+
+def build_user_prompt(user_input, electives_taken):
+    """
+    构建 user prompt（动态部分，包含学期信息和已修课程）
+    """
+    user_prompt = f"""## 学生信息
+- 专业：{user_input['major']}
+- 当前学期：第{user_input['semester']}学期（重要：只能推荐开课学期 >= {user_input['semester']} 的课程）
+- 培养方向：{user_input['direction'] if user_input['direction'] else '未指定'}
+- 已修课程：{', '.join(electives_taken) if electives_taken else '无'}
+
+请根据系统指令中的完整课程库，为以上学生生成课程规划。注意：只能推荐开课学期 >= {user_input['semester']} 的课程。"""
+    
+    return user_prompt
 
 def parse_ai_response(response_text):
     """解析 AI 返回的 JSON 响应"""
@@ -153,7 +247,7 @@ def parse_ai_response(response_text):
 
 @app.route('/api/ai-plan', methods=['POST'])
 def ai_plan():
-    """使用 DeepSeek AI 生成课程规划"""
+    """使用 DeepSeek AI 生成课程规划（利用 API 输入缓存）"""
     try:
         data = request.get_json()
         
@@ -179,37 +273,67 @@ def ai_plan():
                 'error': '课程数据加载失败'
             }, 500)
         
-        # 构建 Prompt
-        prompt = build_ai_prompt(courses, user_input, electives_taken)
+        # 构建课程快照（用于 system prompt，确保顺序一致）
+        # courses_snapshot = build_courses_snapshot(courses, user_input['semester'])
+        courses_snapshot = build_courses_snapshot(courses)
         
+        # 构建 system prompt（静态部分，可被缓存）
+        system_prompt = build_system_prompt(courses_snapshot)
+        
+        # 构建 user prompt（动态部分）
+        user_prompt = build_user_prompt(user_input, electives_taken)
+        
+        # 计算 system prompt 的 token 数（估算）
+        system_prompt_length = len(system_prompt)
+        
+        print(f"\n{'='*50}")
         print(f"📤 发送请求到 DeepSeek API...")
+        print(f"   用户: {user_input['major']}, 第{user_input['semester']}学期, 方向:{user_input['direction'] or '未指定'}")
+        print(f"   已修课程: {electives_taken if electives_taken else '无'}")
+        print(f"   System Prompt 长度: {system_prompt_length} 字符（静态部分，可被缓存）")
+        print(f"   User Prompt 长度: {len(user_prompt)} 字符（动态部分）")
+        print(f"{'='*50}")
         
-        # 调用 DeepSeek API
+        # 调用 DeepSeek API（利用其自动缓存机制）
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
-                {"role": "system", "content": "你是一个专业的课程规划专家，只输出 JSON 格式的结果，不要添加任何解释文字。"},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             temperature=0.7,
             max_tokens=2000,
             stream=False
         )
-         # 获取 token 使用量
+        
+        # 获取 token 使用量
         usage = response.usage
         prompt_tokens = usage.prompt_tokens
         completion_tokens = usage.completion_tokens
         total_tokens = usage.total_tokens
         
+        # 检查是否有缓存命中信息
+        prompt_tokens_details = getattr(usage, 'prompt_tokens_details', None)
+        cached_tokens = 0
+        if prompt_tokens_details:
+            cached_tokens = getattr(prompt_tokens_details, 'cached_tokens', 0)
+        
         # 打印 token 统计
         print(f"\n{'='*50}")
         print(f"📊 Token 使用统计:")
-        print(f"   ├─ 输入 token 数 (prompt): {prompt_tokens}")
-        print(f"   ├─ 输出 token 数 (completion): {completion_tokens}")
+        print(f"   ├─ 输入 token 数: {prompt_tokens}")
+        if cached_tokens > 0:
+            print(f"   │  └─ 其中缓存命中: {cached_tokens} tokens (节省成本!)")
+        print(f"   ├─ 输出 token 数: {completion_tokens}")
         print(f"   └─ 总 token 数: {total_tokens}")
+        
+        if cached_tokens > 0:
+            # 估算节省的费用（按价格页面：缓存命中0.2元/百万，未命中2元/百万）
+            saved_cost = (cached_tokens / 1_000_000) * (2 - 0.2)
+            print(f"   💰 本次请求节省约: ¥{saved_cost:.6f}")
         print(f"{'='*50}\n")
+        
         ai_response = response.choices[0].message.content
-        print(f"📥 AI 响应: {ai_response[:200]}...")
         
         # 解析 AI 响应
         plan_data = parse_ai_response(ai_response)
@@ -224,11 +348,17 @@ def ai_plan():
             'success': True,
             'plan': plan_data.get('plan', []),
             'summary': plan_data.get('summary', {}),
-            'raw_response': ai_response  # 可选，用于调试
+            'cached': cached_tokens > 0,
+            'token_usage': {
+                'prompt_tokens': prompt_tokens,
+                'completion_tokens': completion_tokens,
+                'total_tokens': total_tokens,
+                'cached_tokens': cached_tokens
+            }
         })
         
     except Exception as e:
-        print(f"AI 规划失败: {e}")
+        print(f"\n❌ AI 规划失败: {e}")
         import traceback
         traceback.print_exc()
         return json_utf8({

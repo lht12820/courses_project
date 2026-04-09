@@ -80,7 +80,7 @@
       
       <div class="summary">
         <div class="summary-grid">
-          <div><strong>当前学期：</strong>第{{ planResult.summary.current_semester }}学期结束后</div>
+          <div><strong>当前学期：</strong>第{{ planResult.summary.current_semester }}学期</div>
           <div><strong>培养方向：</strong>{{ planResult.summary.direction }}</div>
           <div><strong>规划课程：</strong>{{ planResult.summary.total_courses }}门</div>
           <div><strong>总学分：</strong>{{ planResult.summary.total_credits }}学分</div>
