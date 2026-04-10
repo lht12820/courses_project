@@ -3,9 +3,9 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from openai import OpenAI
 import json
-import pandas as pd
 import os
 import re
+import csv
 
 app = Flask(__name__)
 CORS(app)
@@ -30,26 +30,35 @@ client = OpenAI(
 ) if DEEPSEEK_API_KEY else None
 
 # 数据文件路径
-DATA_FILE = os.path.join(os.path.dirname(__file__), 'data', 'CS_courses.xlsx')
+DATA_FILE = os.path.join(os.path.dirname(__file__), 'data', 'CS_courses.csv')
 
 def load_courses():
-    """加载Excel中的课程数据"""
+    """加载CSV文件中的课程数据（使用csv模块）"""
     try:
-        # 读取Excel文件
-        df = pd.read_excel(DATA_FILE)
+        courses = []
+        # 使用 utf-8-sig 编码处理可能的 BOM 头
+        with open(DATA_FILE, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # 获取列名（兼容可能的列名变体）
+                name = row.get('课程名称', '')
+                category = row.get('课程类别', '')
+                credits = float(row.get('学分', 0)) if row.get('学分', '') else 0
+                semester = int(row.get('开课学期', 0)) if row.get('开课学期', '') else 0
+                direction = row.get('专业方向', '通用')
+                
+                # 跳过空课程名
+                if not name:
+                    continue
+                
+                courses.append({
+                    '课程名称': name,
+                    '课程类别': category,
+                    '学分': credits,
+                    '开课学期': semester,
+                    '专业方向': direction if direction else '通用'
+                })
         
-        # 重命名列（根据实际Excel列名）
-        df.columns = ['课程名称', '课程类别', '学分', '开课学期', '专业方向']
-        
-        # 清洗数据：去除空值行
-        df = df.dropna(subset=['课程名称'])
-        
-        # 填充空值
-        df['专业方向'] = df['专业方向'].fillna('通用')
-        df['开课学期'] = df['开课学期'].fillna(0).astype(int)
-        
-        # 转换为字典列表
-        courses = df.to_dict('records')
         return courses
     except Exception as e:
         print(f"加载课程数据失败: {e}")
