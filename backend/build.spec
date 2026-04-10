@@ -1,0 +1,123 @@
+# -*- mode: python ; coding: utf-8 -*-
+
+import sys
+import os
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+
+a = Analysis(
+    ['app.py'],
+    pathex=[],
+    binaries=[],
+    datas=[
+        ('frontend_dist', 'frontend_dist'),  # 前端静态文件
+        ('data', 'data'),                     # 课程数据文件
+        ('.env', '.'),                        # 环境变量文件（可选）
+    ],
+    hiddenimports=[
+        'openai',
+        'openai._client',
+        'openai._types',
+        'openai._base_client',
+        'openai._models',
+        'openai._utils',
+        'openai._streaming',
+        'openai._exceptions',
+        'openai._legacy_response',
+        'openai._response',
+        'openai._compat',
+        'openai._constants',
+        'openai._version',
+        'openai._api_requestor',
+        'openai._extras',
+        'openai.lib._pydantic',
+        'openai.lib._transform',
+        'openai.types',
+        'openai.types.chat',
+        'openai.types.chat.chat_completion',
+        'openai.types.chat.chat_completion_message',
+        'openai.types.chat.chat_completion_chunk',
+        'openai.types.create_image_request',
+        'openai.types.edit_image_request',
+        'openai.types.embedding_create_params',
+        'openai.types.file_create_params',
+        'openai.types.fine_tune_create_params',
+        'openai.types.fine_tuning',
+        'openai.types.image',
+        'openai.types.model',
+        'openai.types.moderation_create_params',
+        'openai.types.audio',
+        'openai.types.beta',
+        'openai.types.beta.assistant',
+        'openai.types.beta.assistant_tool',
+        'openai.types.beta.thread',
+        'openai.types.beta.threads',
+        'openai.types.beta.threads.runs',
+        'openai.types.beta.threads.runs.run_step',
+        'openai.types.beta.threads.runs.run_step_delta',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_call',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function_tool_call',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function_tool_calls',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function_tool_calls_function',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function_tool_calls_function_tool_call',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function_tool_calls_function_tool_calls',
+        'openai.types.beta.threads.runs.run_step_delta_message_delta_tool_calls_function_tool_calls_function_tool_calls_function',
+        'pydantic',
+        'pydantic._internal',
+        'pydantic._internal._utils',
+        'pydantic._internal._decorators',
+        'pydantic._internal._validators',
+        'pydantic._internal._model_construction',
+        'pydantic._internal._config',
+        'pydantic._internal._create_model',
+        'pydantic._internal._decorators_v1',
+        'pydantic._internal._generate_schema',
+        'pydantic._internal._annotated_handlers',
+        'pydantic._internal._core_utils',
+        'pydantic._internal._utils_internal',
+        'pydantic._internal._fields',
+        'pydantic._internal._model_construction_internal',
+        'pydantic._internal._validators_internal',
+        'pydantic._internal._model_construction_shared',
+        'dotenv',
+        'dotenv.main',
+        'dotenv.parser',
+        'dotenv.variables',
+        'dotenv.cli',
+        'dotenv.ipython',
+        'dotenv.version',
+    ],
+    hookspath=[],
+    hooksconfig={},
+    runtime_hooks=[
+        'pyinstaller_hook.py',  # 如果创建了 hook 文件
+    ],
+    excludes=[],
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.datas,
+    [],
+    name='AICoursePlanner',  # 生成的 exe 名称
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,  # True=显示控制台窗口，False=隐藏控制台
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon='icon.ico',  # 可选：应用程序图标
+)

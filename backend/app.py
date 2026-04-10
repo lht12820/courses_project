@@ -515,5 +515,42 @@ def generate_plan():
         traceback.print_exc()
         return json_utf8({'success': False, 'error': str(e)}, 500)
 
+# ==================== 静态文件托管（用于打包后访问前端） ====================
+# 获取前端静态文件目录（支持 PyInstaller 打包后的路径）
+def get_frontend_dist_path():
+    """获取前端静态文件目录路径（兼容 PyInstaller）"""
+    import sys
+    if getattr(sys, 'frozen', False):
+        # 打包后的环境
+        base_path = sys._MEIPASS
+    else:
+        # 开发环境
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, 'frontend_dist')
+
+FRONTEND_DIST = get_frontend_dist_path()
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """托管前端静态文件"""
+    if path.startswith('api/'):
+        # API 请求交给其他路由处理
+        return json_utf8({'error': 'Not Found'}, 404)
+    
+    file_path = os.path.join(FRONTEND_DIST, path)
+    if path and os.path.exists(file_path) and os.path.isfile(file_path):
+        # 返回静态资源文件
+        from flask import send_file
+        return send_file(file_path)
+    
+    # 返回 index.html（Vue Router 路由）
+    index_path = os.path.join(FRONTEND_DIST, 'index.html')
+    if os.path.exists(index_path):
+        from flask import send_file
+        return send_file(index_path)
+    
+    return json_utf8({'error': 'Not Found'}, 404)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
