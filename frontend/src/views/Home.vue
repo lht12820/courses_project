@@ -96,7 +96,7 @@
           <h3>{{ semester }}</h3>
           <table class="course-table">
             <thead>
-              <tr><th>课程名称</th><th>课程类别</th><th>学分</th><th>专业方向</th></tr>
+              <tr><th>课程名称</th><th>课程类别</th><th>学分</th></tr>
             </thead>
             <tbody>
               <tr v-for="course in courses" :key="course.name">
@@ -137,7 +137,7 @@
           
           <table class="course-table full-table">
             <thead>
-              <tr><th>课程名称</th><th>课程类别</th><th>学分</th><th>开课学期</th><th>专业方向</th></tr>
+              <tr><th>课程名称</th><th>课程类别</th><th>学分</th><th>开课学期</th></tr>
             </thead>
             <tbody>
               <tr v-for="course in filteredCourses" :key="course['课程名称']">
@@ -145,7 +145,7 @@
                 <td><span :class="['type-badge', getTypeClass(course['课程类别'])]">{{ course['课程类别'] }}</span></td>
                 <td>{{ course['学分'] }}</td>
                 <td>第{{ course['开课学期'] }}学期</td>
-                <td>{{ course['专业方向'] }}</td>
+                <!-- <td>{{ course['专业方向'] }}</td> -->
               </tr>
             </tbody>
           </table>

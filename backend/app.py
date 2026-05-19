@@ -45,7 +45,7 @@ def load_courses():
                 category = row.get('课程类别', '')
                 credits = float(row.get('学分', 0)) if row.get('学分', '') else 0
                 semester = int(row.get('开课学期', 0)) if row.get('开课学期', '') else 0
-                direction = row.get('专业方向', '通用')
+                # direction = row.get('专业方向', '通用')
                 
                 # 跳过空课程名
                 if not name:
@@ -56,7 +56,7 @@ def load_courses():
                     '课程类别': category,
                     '学分': credits,
                     '开课学期': semester,
-                    '专业方向': direction if direction else '通用'
+                    # '专业方向': direction if direction else '通用'
                 })
         
         return courses
@@ -93,7 +93,7 @@ def build_ai_prompt(courses, user_input, electives_taken):
                     'name': c['课程名称'],
                     'semester': c['开课学期'],
                     'credits': c['学分'],
-                    'direction': c['专业方向']
+                    # 'direction': c['专业方向']
                 })
     
     prompt = f"""你是一个计算机专业的课程规划专家。请根据以下信息，为学生制定剩余的选修课程规划。
@@ -157,7 +157,7 @@ def build_courses_snapshot(courses):
             'type': c['课程类别'],
             'semester': c['开课学期'],
             'credits': c['学分'],
-            'direction': c['专业方向']
+            # 'direction': c['专业方向']
         })
     # 按固定规则排序，确保字符串完全一致
     snapshot.sort(key=lambda x: (x['semester'], x['name'], x['type']))
@@ -413,9 +413,9 @@ def filter_courses():
         # 筛选未修的课程（开课学期 > 当前学期）
         filtered = [c for c in courses if c['开课学期'] > current_semester]
         
-        # 按专业方向筛选
-        if direction and direction != '通用':
-            filtered = [c for c in filtered if direction in str(c['专业方向'])]
+        # # 按专业方向筛选
+        # if direction and direction != '通用':
+        #     filtered = [c for c in filtered if direction in str(c['专业方向'])]
         
         # 按课程类别筛选
         if category:
@@ -491,7 +491,7 @@ def generate_plan():
                 'name': course['课程名称'],
                 'type': course['课程类别'],
                 'credits': course['学分'],
-                'direction': course['专业方向']
+                # 'direction': course['专业方向']
             })
         
         # 统计信息
