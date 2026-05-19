@@ -21,14 +21,18 @@
         </div>
       </div>
     </div>
+    
 
     <!-- 输入表单 -->
     <div class="input-card">
       <h2>📝 规划参数</h2>
       
       <div class="form-group">
-        <label>专业</label>
-        <input type="text" v-model="form.major" placeholder="例：计算机科学与技术">
+      <label>专业</label>
+      <select v-model="form.profession">
+      <option v-for="p in professions" :key="p" :value="p">{{ p }}</option>
+      </select>
+      <small>不同专业的课程库和培养方向不同</small>
       </div>
 
       <div class="form-group">
@@ -45,16 +49,13 @@
         <small>多个课程用逗号分隔</small>
       </div>
 
-     <div class="form-group">
+     <!-- 培养方向 -->
+<div class="form-group">
   <label>培养方向</label>
   <div class="direction-input">
     <select v-model="selectedDirection">
       <option value="">请选择或自定义</option>
-      <option value="人工智能">🤖 人工智能</option>
-      <option value="大数据">📊 大数据</option>
-      <option value="网络安全">🔒 网络安全</option>
-      <option value="物联网">🌐 物联网</option>
-      <option value="嵌入式">📱 嵌入式</option>
+      <option v-for="dir in directionOptions" :key="dir" :value="dir">{{ dir }}</option>
     </select>
     <input 
       type="text" 
@@ -137,15 +138,19 @@
           
           <table class="course-table full-table">
             <thead>
-              <tr><th>课程名称</th><th>课程类别</th><th>学分</th><th>开课学期</th></tr>
+              <tr>
+                <th>课程名称</th>
+                <th>课程类别</th>
+                <th>学分</th>
+                <th>开课学期</th>
+              </tr>
             </thead>
             <tbody>
-              <tr v-for="course in filteredCourses" :key="course['课程名称']">
+              <tr v-for="course in courses" :key="course.name">
                 <td class="course-name">{{ course['课程名称'] }}</td>
                 <td><span :class="['type-badge', getTypeClass(course['课程类别'])]">{{ course['课程类别'] }}</span></td>
                 <td>{{ course['学分'] }}</td>
                 <td>第{{ course['开课学期'] }}学期</td>
-                <!-- <td>{{ course['专业方向'] }}</td> -->
               </tr>
             </tbody>
           </table>
@@ -166,10 +171,10 @@ import axios from 'axios'
 
 // 表单数据
 const form = ref({
-  major: '计算机科学与技术',
+  profession: '计算机科学与技术',  // 新增专业字段
+  major: '计算机科学与技术',       // 专业名称（与profession同步）
   semester: 1,
-  direction: '',
-  
+  direction: ''
 })
 
 const selectedDirection = ref('')
@@ -183,6 +188,11 @@ const showAllCourses = ref(false)
 const courseSearch = ref('')
 const semesterFilter = ref('')
 const courseStats = ref(null)
+// 专业列表和方向选项
+const professions = ref(['计算机科学与技术', '网络空间安全', '数据科学与大数据技术', '人工智能'])
+const directionOptions = ref([])  // 当前专业的培养方向选项
+const tokenUsage = ref(null)
+const isCached = ref(false)
 
 // 监听预设方向变化
 watch(selectedDirection, (newVal) => {
@@ -203,6 +213,25 @@ watch(customDirection, (newVal) => {
     form.value.direction = ''
   }
 })
+
+// 监听专业变化，更新方向选项
+watch(() => form.value.profession, (newProfession) => {
+  // 更新方向选项
+  const directionsMap = {
+    '计算机科学与技术': ['操作系统', '编译原理', '嵌入式', '图形学'],
+    '网络空间安全': ['密码学', '网络防御', '内容安全', '区块链'],
+    '数据科学与大数据技术': ['数据挖掘', '分布式计算', '可视化', '数据治理'],
+    '人工智能': ['机器学习', '计算机视觉', '自然语言处理', '模式识别']
+  }
+  directionOptions.value = directionsMap[newProfession] || []
+  
+  // 清空已选方向
+  selectedDirection.value = ''
+  customDirection.value = ''
+  form.value.direction = ''
+  form.value.major = newProfession  // 同步专业名称
+})
+
 
 // 筛选后的课程
 const filteredCourses = computed(() => {
@@ -245,9 +274,11 @@ const loadCourseStats = async () => {
 
 // 生成规划
 const generatePlan = async () => {
-  isLoading.value = true
+   isLoading.value = true
   planResult.value = null
   errorMsg.value = ''
+  tokenUsage.value = null
+  isCached.value = false
 
   const electives = electivesInput.value
     .split(',')
@@ -255,11 +286,13 @@ const generatePlan = async () => {
     .filter(s => s)
 
   const requestData = {
+    profession: form.value.profession,  // 新增专业字段
     major: form.value.major,
     semester: form.value.semester,
     electives: electives,
     direction: form.value.direction
   }
+  console.log("📤 请求数据:", requestData)  // 添加这行
 
   try {
     // 优先使用 AI 规划接口

@@ -31,38 +31,105 @@ client = OpenAI(
 
 # 数据文件路径
 DATA_FILE = os.path.join(os.path.dirname(__file__), 'data', 'CS_courses.csv')
+# ==================== 专业配置 ====================
+# 专业与数据文件的映射
+PROFESSION_DATA_MAP = {
+    '计算机科学与技术': 'CS_courses.csv',
+    '网络空间安全': 'CYBER_courses.csv',
+    '数据科学与大数据技术': 'DATA_courses.csv',
+    '人工智能': 'AI_courses.csv'
+}
 
-def load_courses():
-    """加载CSV文件中的课程数据（使用csv模块）"""
+# 专业与培养方向选项的映射
+PROFESSION_DIRECTIONS_MAP = {
+    '计算机科学与技术': ['操作系统', '编译原理', '嵌入式', '图形学'],
+    '网络空间安全': ['密码学', '网络防御', '内容安全', '区块链'],
+    '数据科学与大数据技术': ['数据挖掘', '分布式计算', '可视化', '数据治理'],
+    '人工智能': ['机器学习', '计算机视觉', '自然语言处理', '模式识别']
+}
+
+def get_courses_by_profession(profession):
+    """根据专业名称加载对应的课程数据"""
+    filename = PROFESSION_DATA_MAP.get(profession, 'CS_courses.csv')
+    filepath = os.path.join(os.path.dirname(__file__), 'data', filename)
+    return load_courses_from_csv(filepath)
+
+def load_courses_from_csv(filepath):
+    """从指定的CSV文件加载课程数据（自动检测编码）"""
     try:
         courses = []
-        # 使用 utf-8-sig 编码处理可能的 BOM 头
-        with open(DATA_FILE, 'r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # 获取列名（兼容可能的列名变体）
-                name = row.get('课程名称', '')
-                category = row.get('课程类别', '')
-                credits = float(row.get('学分', 0)) if row.get('学分', '') else 0
-                semester = int(row.get('开课学期', 0)) if row.get('开课学期', '') else 0
-                # direction = row.get('专业方向', '通用')
-                
-                # 跳过空课程名
-                if not name:
-                    continue
-                
-                courses.append({
-                    '课程名称': name,
-                    '课程类别': category,
-                    '学分': credits,
-                    '开课学期': semester,
-                    # '专业方向': direction if direction else '通用'
-                })
         
+        # 尝试多种编码（按优先级排序）
+        encodings = ['utf-8-sig', 'utf-8', 'gbk', 'gb2312', 'gb18030', 'latin-1']
+        
+        content = None
+        used_encoding = None
+        
+        for encoding in encodings:
+            try:
+                with open(filepath, 'r', encoding=encoding) as f:
+                    content = f.read()
+                    used_encoding = encoding
+                    print(f"✅ 成功使用 {encoding} 编码读取文件: {os.path.basename(filepath)}")
+                    break
+            except UnicodeDecodeError:
+                continue
+            except Exception as e:
+                print(f"尝试编码 {encoding} 失败: {e}")
+                continue
+        
+        if content is None:
+            print(f"❌ 无法解码文件: {filepath}")
+            return []
+        
+        # 使用 csv 模块从字符串中解析
+        import io
+        f = io.StringIO(content)
+        reader = csv.DictReader(f)
+        
+        # 获取列名（用于调试）
+        if reader.fieldnames:
+            print(f"   列名: {reader.fieldnames}")
+        
+        for row in reader:
+            name = row.get('课程名称', '')
+            if not name or name.strip() == '':
+                continue
+            
+            # 处理学分
+            credits_str = row.get('学分', '0')
+            try:
+                credits = float(credits_str) if credits_str and credits_str.strip() else 0
+            except ValueError:
+                credits = 0
+            
+            # 处理开课学期
+            semester_str = row.get('开课学期', '0')
+            try:
+                semester = int(float(semester_str)) if semester_str and semester_str.strip() else 0
+            except ValueError:
+                semester = 0
+            
+            courses.append({
+                '课程名称': name.strip(),
+                '课程类别': row.get('课程类别', '').strip(),
+                '学分': credits,
+                '开课学期': semester,
+                '专业方向': row.get('专业方向', '通用') or '通用'
+            })
+        
+        print(f"📚 成功加载 {len(courses)} 门课程从 {os.path.basename(filepath)}")
         return courses
+        
     except Exception as e:
-        print(f"加载课程数据失败: {e}")
+        print(f"❌ 加载课程数据失败 {filepath}: {e}")
+        import traceback
+        traceback.print_exc()
         return []
+
+def load_courses(profession='计算机科学与技术'):
+    """兼容旧接口，根据专业加载课程"""
+    return get_courses_by_profession(profession)
 
 def json_utf8(data, status_code=200):
     response = Response(
@@ -163,9 +230,9 @@ def build_courses_snapshot(courses):
     snapshot.sort(key=lambda x: (x['semester'], x['name'], x['type']))
     return snapshot
 
-def build_system_prompt(courses_snapshot):
+def build_system_prompt(courses_snapshot, profession):
     """
-    构建 system prompt（静态部分，包含完整课程库）
+    构建 system prompt（静态部分，包含完整课程库和专业信息）
     """
     # 按类别整理课程
     courses_by_type = {
@@ -184,7 +251,10 @@ def build_system_prompt(courses_snapshot):
     for cat in courses_by_type:
         courses_by_type[cat].sort(key=lambda x: (x['name'], x['semester']))
     
-    system_prompt = f"""你是一个计算机专业的课程规划专家。请严格根据以下完整课程库和规划规则，为学生制定剩余的选修课程规划。
+    system_prompt = f"""你是一个{profession}专业的课程规划专家。请严格根据以下完整课程库和规划规则，为学生制定剩余的选修课程规划。
+
+## 专业信息
+- 所属专业：{profession}
 
 ## 完整课程库（唯一依据，所有课程都在这里）
 ### 新生项目式课程（每门课都有开课学期，必须选开课学期>=当前学期的）
@@ -227,6 +297,26 @@ def build_system_prompt(courses_snapshot):
     
     return system_prompt
 
+@app.route('/api/directions', methods=['GET'])
+def get_directions():
+    """获取指定专业的培养方向选项"""
+    profession = request.args.get('profession', '计算机科学与技术')
+    directions = PROFESSION_DIRECTIONS_MAP.get(profession, [])
+    return json_utf8({
+        'success': True,
+        'profession': profession,
+        'directions': directions
+    })
+
+@app.route('/api/professions', methods=['GET'])
+def get_professions():
+    """获取所有专业列表"""
+    professions = list(PROFESSION_DATA_MAP.keys())
+    return json_utf8({
+        'success': True,
+        'professions': professions
+    })
+
 def build_user_prompt(user_input, electives_taken):
     """
     构建 user prompt（动态部分，包含学期信息和已修课程）
@@ -267,29 +357,30 @@ def ai_plan():
             }, 500)
         
         # 获取用户输入
+        profession = data.get('profession', '计算机科学与技术')
         user_input = {
-            'major': data.get('major', '计算机科学与技术'),
+            'profession': profession,
+            'major': data.get('major', profession),  # 专业名称用于显示
             'semester': int(data.get('semester', 1)),
             'direction': data.get('direction', '')
         }
         electives_taken = data.get('electives', [])
         
-        # 加载课程数据
-        courses = load_courses()
+        # 根据专业加载对应的课程数据
+        courses = get_courses_by_profession(profession)
         if not courses:
             return json_utf8({
                 'success': False,
-                'error': '课程数据加载失败'
+                'error': f'未找到{profession}专业的课程数据'
             }, 500)
         
-        # 构建课程快照（用于 system prompt，确保顺序一致）
-        # courses_snapshot = build_courses_snapshot(courses, user_input['semester'])
+        # 构建课程快照
         courses_snapshot = build_courses_snapshot(courses)
         
-        # 构建 system prompt（静态部分，可被缓存）
-        system_prompt = build_system_prompt(courses_snapshot)
+        # 构建 system prompt（包含专业信息）
+        system_prompt = build_system_prompt(courses_snapshot, profession)
         
-        # 构建 user prompt（动态部分）
+        # 构建 user prompt
         user_prompt = build_user_prompt(user_input, electives_taken)
         
         # 计算 system prompt 的 token 数（估算）
