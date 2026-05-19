@@ -21,26 +21,25 @@
         </div>
       </div>
     </div>
-    
 
     <!-- 输入表单 -->
     <div class="input-card">
       <h2>📝 规划参数</h2>
-      
+
       <div class="form-group">
-      <label>专业</label>
-      <select v-model="form.profession">
-      <option v-for="p in professions" :key="p" :value="p">{{ p }}</option>
-      </select>
-      <small>不同专业的课程库和培养方向不同</small>
+        <label>专业</label>
+        <select v-model="form.profession">
+          <option v-for="p in professions" :key="p" :value="p">{{ p }}</option>
+        </select>
+        <small>不同专业的课程库和培养方向不同</small>
       </div>
 
       <div class="form-group">
-      <label>当前学期</label>
-      <select v-model="form.semester">
-      <option v-for="n in 7" :key="n" :value="n">第{{ n }}学期</option>
-      </select>
-      <small>从该学期开始规划课程</small>
+        <label>当前学期</label>
+        <select v-model="form.semester">
+          <option v-for="n in 7" :key="n" :value="n">第{{ n }}学期</option>
+        </select>
+        <small>从该学期开始规划课程</small>
       </div>
 
       <div class="form-group">
@@ -49,23 +48,17 @@
         <small>多个课程用逗号分隔</small>
       </div>
 
-     <!-- 培养方向 -->
-<div class="form-group">
-  <label>培养方向</label>
-  <div class="direction-input">
-    <select v-model="selectedDirection">
-      <option value="">请选择或自定义</option>
-      <option v-for="dir in directionOptions" :key="dir" :value="dir">{{ dir }}</option>
-    </select>
-    <input 
-      type="text" 
-      v-model="customDirection" 
-      placeholder="或直接输入自定义方向"
-    >
-  </div>
-  <small>可选择预设方向，或直接输入你的培养方向</small>
-</div>
-
+      <div class="form-group">
+        <label>培养方向</label>
+        <div class="direction-input">
+          <select v-model="selectedDirection">
+            <option value="">请选择或自定义</option>
+            <option v-for="dir in directionOptions" :key="dir" :value="dir">{{ dir }}</option>
+          </select>
+          <input type="text" v-model="customDirection" placeholder="或直接输入自定义方向">
+        </div>
+        <small>可选择预设方向，或直接输入你的培养方向</small>
+      </div>
 
       <button @click="generatePlan" :disabled="isLoading" class="generate-btn">
         {{ isLoading ? '规划中...' : '🚀 生成课程规划' }}
@@ -78,7 +71,7 @@
         <h2>📋 课程规划结果</h2>
         <button @click="clearResult" class="clear-btn">清除</button>
       </div>
-      
+
       <div class="summary">
         <div class="summary-grid">
           <div><strong>当前学期：</strong>第{{ planResult.summary.current_semester }}学期</div>
@@ -88,23 +81,27 @@
           <div><strong>剩余学期：</strong>{{ planResult.summary.remaining_semesters.join('、') }}学期</div>
         </div>
       </div>
-      
+
       <div v-if="planResult.summary.ai_message" class="ai-message">
-  <strong>🤖 AI 规划说明：</strong> {{ planResult.summary.ai_message }}
-</div>
+        <strong>🤖 AI 规划说明：</strong> {{ planResult.summary.ai_message }}
+      </div>
+
       <div class="plan-detail">
         <div v-for="(courses, semester) in planResult.plan" :key="semester" class="semester-block">
           <h3>{{ semester }}</h3>
           <table class="course-table">
             <thead>
-              <tr><th>课程名称</th><th>课程类别</th><th>学分</th></tr>
+              <tr>
+                <th>课程名称</th>
+                <th>课程类别</th>
+                <th>学分</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="course in courses" :key="course.name">
                 <td class="course-name">{{ course.name }}</td>
                 <td><span :class="['type-badge', getTypeClass(course.type)]">{{ course.type }}</span></td>
                 <td>{{ course.credits }}</td>
-                <td>{{ course.direction }}</td>
               </tr>
             </tbody>
           </table>
@@ -124,7 +121,7 @@
           {{ showAllCourses ? '收起' : '展开' }}
         </button>
       </div>
-      
+
       <div v-if="showAllCourses" class="courses-list">
         <div v-if="allCourses.length === 0" class="loading">加载中...</div>
         <div v-else>
@@ -135,7 +132,7 @@
               <option v-for="n in 8" :key="n" :value="n">第{{ n }}学期</option>
             </select>
           </div>
-          
+
           <table class="course-table full-table">
             <thead>
               <tr>
@@ -146,7 +143,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="course in courses" :key="course.name">
+              <tr v-for="course in filteredCourses" :key="course['课程名称']">
                 <td class="course-name">{{ course['课程名称'] }}</td>
                 <td><span :class="['type-badge', getTypeClass(course['课程类别'])]">{{ course['课程类别'] }}</span></td>
                 <td>{{ course['学分'] }}</td>
@@ -166,13 +163,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted,watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 
 // 表单数据
 const form = ref({
-  profession: '计算机科学与技术',  // 新增专业字段
-  major: '计算机科学与技术',       // 专业名称（与profession同步）
+  profession: '计算机科学与技术',
   semester: 1,
   direction: ''
 })
@@ -188,35 +184,13 @@ const showAllCourses = ref(false)
 const courseSearch = ref('')
 const semesterFilter = ref('')
 const courseStats = ref(null)
+
 // 专业列表和方向选项
 const professions = ref(['计算机科学与技术', '网络空间安全', '数据科学与大数据技术', '人工智能'])
-const directionOptions = ref([])  // 当前专业的培养方向选项
-const tokenUsage = ref(null)
-const isCached = ref(false)
-
-// 监听预设方向变化
-watch(selectedDirection, (newVal) => {
-  if (newVal) {
-    customDirection.value = ''  // 选择预设时清空自定义
-    form.value.direction = newVal
-  } else if (!customDirection.value) {
-    form.value.direction = ''
-  }
-})
-
-// 监听自定义方向变化
-watch(customDirection, (newVal) => {
-  if (newVal) {
-    selectedDirection.value = ''  // 输入自定义时清空预设选择
-    form.value.direction = newVal
-  } else if (!selectedDirection.value) {
-    form.value.direction = ''
-  }
-})
+const directionOptions = ref([])
 
 // 监听专业变化，更新方向选项
 watch(() => form.value.profession, (newProfession) => {
-  // 更新方向选项
   const directionsMap = {
     '计算机科学与技术': ['操作系统', '编译原理', '嵌入式', '图形学'],
     '网络空间安全': ['密码学', '网络防御', '内容安全', '区块链'],
@@ -224,29 +198,41 @@ watch(() => form.value.profession, (newProfession) => {
     '人工智能': ['机器学习', '计算机视觉', '自然语言处理', '模式识别']
   }
   directionOptions.value = directionsMap[newProfession] || []
-  
-  // 清空已选方向
   selectedDirection.value = ''
   customDirection.value = ''
   form.value.direction = ''
-  form.value.major = newProfession  // 同步专业名称
 })
 
+// 监听方向变化
+watch(selectedDirection, (newVal) => {
+  if (newVal) {
+    customDirection.value = ''
+    form.value.direction = newVal
+  } else if (!customDirection.value) {
+    form.value.direction = ''
+  }
+})
+
+watch(customDirection, (newVal) => {
+  if (newVal) {
+    selectedDirection.value = ''
+    form.value.direction = newVal
+  } else if (!selectedDirection.value) {
+    form.value.direction = ''
+  }
+})
 
 // 筛选后的课程
 const filteredCourses = computed(() => {
   let result = allCourses.value
-  
   if (courseSearch.value) {
-    result = result.filter(c => 
+    result = result.filter(c =>
       c['课程名称'].toLowerCase().includes(courseSearch.value.toLowerCase())
     )
   }
-  
   if (semesterFilter.value) {
     result = result.filter(c => c['开课学期'] === parseInt(semesterFilter.value))
   }
-  
   return result
 })
 
@@ -256,15 +242,12 @@ const loadCourseStats = async () => {
     const response = await axios.get('/api/courses')
     if (response.data.success) {
       allCourses.value = response.data.courses
-      
-      // 统计信息
       const categories = [...new Set(allCourses.value.map(c => c['课程类别']))]
       const semesters = [...new Set(allCourses.value.map(c => c['开课学期']))]
-      
       courseStats.value = {
         total: allCourses.value.length,
         categories: categories,
-        semesters: semesters.sort((a,b) => a-b)
+        semesters: semesters.sort((a, b) => a - b)
       }
     }
   } catch (err) {
@@ -274,11 +257,10 @@ const loadCourseStats = async () => {
 
 // 生成规划
 const generatePlan = async () => {
-   isLoading.value = true
+  console.log("🔵 generatePlan 开始执行")
+  isLoading.value = true
   planResult.value = null
   errorMsg.value = ''
-  tokenUsage.value = null
-  isCached.value = false
 
   const electives = electivesInput.value
     .split(',')
@@ -286,35 +268,34 @@ const generatePlan = async () => {
     .filter(s => s)
 
   const requestData = {
-    profession: form.value.profession,  // 新增专业字段
-    major: form.value.major,
+    profession: form.value.profession,
+    major: form.value.profession,
     semester: form.value.semester,
     electives: electives,
     direction: form.value.direction
   }
-  console.log("📤 请求数据:", requestData)  // 添加这行
+  console.log("📤 请求数据:", requestData)
 
   try {
-    // 优先使用 AI 规划接口
     const response = await axios.post('/api/ai-plan', requestData, {
-      timeout: 60000  // AI 调用可能需要更长时间，设为60秒
+      timeout: 60000
     })
+    console.log("✅ 收到响应:", response.data)
 
     if (response.data.success) {
-      // 转换 AI 返回的数据格式为前端展示格式
       const planData = response.data
-      
-      // 将 AI 返回的 plan 数组转换为按学期分组的对象
       const groupedPlan = {}
-      planData.plan.forEach(semesterPlan => {
-        const semKey = `第${semesterPlan.semester}学期`
-        groupedPlan[semKey] = semesterPlan.courses.map(course => ({
-          name: course.name,
-          type: course.type,
-          credits: course.credits
-        }))
-      })
-      
+      if (planData.plan && Array.isArray(planData.plan)) {
+        planData.plan.forEach(semesterPlan => {
+          const semKey = `第${semesterPlan.semester}学期`
+          groupedPlan[semKey] = semesterPlan.courses.map(course => ({
+            name: course.name,
+            type: course.type,
+            credits: course.credits
+          }))
+        })
+      }
+
       planResult.value = {
         plan: groupedPlan,
         summary: {
@@ -355,14 +336,13 @@ const toggleCourses = () => {
 }
 
 const getTypeClass = (type) => {
-  if (type.includes('新生项目')) return 'project'
-  if (type.includes('前沿')) return 'frontier'
-  if (type.includes('面向对象')) return 'oop'
-  if (type.includes('专业方向')) return 'elective'
+  if (type && type.includes('新生项目')) return 'project'
+  if (type && type.includes('前沿')) return 'frontier'
+  if (type && type.includes('面向对象')) return 'oop'
+  if (type && type.includes('专业方向')) return 'elective'
   return 'other'
 }
 
-// 页面加载时加载课程统计
 onMounted(() => {
   loadCourseStats()
 })
@@ -383,20 +363,19 @@ h1 {
 }
 
 .subtitle {
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
   text-align: center;
   font-size: 1.2rem;
   margin-bottom: 40px;
 }
 
-/* 统计卡片 */
 .stats-card {
   background: white;
   border-radius: 16px;
   padding: 20px 30px;
   max-width: 900px;
   margin: 0 auto 30px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .stats-card h3 {
@@ -426,14 +405,16 @@ h1 {
   color: #666;
 }
 
-/* 输入卡片 */
-.input-card, .output-card, .courses-card, .error-card {
+.input-card,
+.output-card,
+.courses-card,
+.error-card {
   background: white;
   border-radius: 16px;
   padding: 30px;
   max-width: 1200px;
   margin: 0 auto 30px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
 }
 
 .form-group {
@@ -447,7 +428,8 @@ h1 {
   color: #333;
 }
 
-.form-group input, .form-group select {
+.form-group input,
+.form-group select {
   width: 100%;
   padding: 12px;
   border: 1px solid #ddd;
@@ -456,7 +438,8 @@ h1 {
   transition: border-color 0.3s;
 }
 
-.form-group input:focus, .form-group select:focus {
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
   border-color: #667eea;
 }
@@ -466,6 +449,20 @@ h1 {
   color: #666;
   font-size: 12px;
   margin-top: 5px;
+}
+
+.direction-input {
+  display: flex;
+  gap: 10px;
+}
+
+.direction-input select,
+.direction-input input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
 }
 
 .generate-btn {
@@ -483,7 +480,7 @@ h1 {
 
 .generate-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .generate-btn:disabled {
@@ -491,7 +488,8 @@ h1 {
   cursor: not-allowed;
 }
 
-.output-header, .courses-header {
+.output-header,
+.courses-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -500,12 +498,14 @@ h1 {
   padding-bottom: 15px;
 }
 
-.output-header h2, .courses-header h2 {
+.output-header h2,
+.courses-header h2 {
   margin: 0;
   color: #333;
 }
 
-.clear-btn, .toggle-btn {
+.clear-btn,
+.toggle-btn {
   background: #ff9800;
   color: white;
   border: none;
@@ -514,7 +514,8 @@ h1 {
   cursor: pointer;
 }
 
-.clear-btn:hover, .toggle-btn:hover {
+.clear-btn:hover,
+.toggle-btn:hover {
   background: #e68900;
 }
 
@@ -529,6 +530,16 @@ h1 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
+}
+
+.ai-message {
+  background: #e8eaf6;
+  padding: 12px 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  border-left: 4px solid #667eea;
+  font-size: 14px;
+  color: #333;
 }
 
 .semester-block {
@@ -563,27 +574,20 @@ h1 {
   font-weight: bold;
 }
 
-/* 固定列宽 */
 .course-table th:nth-child(1),
 .course-table td:nth-child(1) {
-  width: 35%;
+  width: 50%;
 }
 
 .course-table th:nth-child(2),
 .course-table td:nth-child(2) {
-  width: 20%;
+  width: 30%;
 }
 
 .course-table th:nth-child(3),
 .course-table td:nth-child(3) {
-  width: 10%;
+  width: 20%;
 }
-
-.course-table th:nth-child(4),
-.course-table td:nth-child(4) {
-  width: 35%;
-}
-
 
 .course-name {
   font-weight: 500;
@@ -597,11 +601,30 @@ h1 {
   font-weight: bold;
 }
 
-.type-badge.project { background: #e8f5e9; color: #2e7d32; }
-.type-badge.frontier { background: #e3f2fd; color: #1565c0; }
-.type-badge.oop { background: #fff3e0; color: #e65100; }
-.type-badge.elective { background: #f3e5f5; color: #7b1fa2; }
-.type-badge.other { background: #f5f5f5; color: #666; }
+.type-badge.project {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.type-badge.frontier {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.type-badge.oop {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.type-badge.elective {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.type-badge.other {
+  background: #f5f5f5;
+  color: #666;
+}
 
 .note {
   margin-top: 20px;
@@ -619,7 +642,8 @@ h1 {
   flex-wrap: wrap;
 }
 
-.search-input, .semester-filter {
+.search-input,
+.semester-filter {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -652,7 +676,6 @@ h1 {
   font-weight: bold;
   position: sticky;
   top: 0;
-  background: white;
   z-index: 1;
 }
 
@@ -662,30 +685,24 @@ h1 {
   background: white;
 }
 
-/* 全量表格列宽 */
 .full-table th:nth-child(1),
 .full-table td:nth-child(1) {
-  width: 35%;
+  width: 40%;
 }
 
 .full-table th:nth-child(2),
 .full-table td:nth-child(2) {
-  width: 15%;
+  width: 25%;
 }
 
 .full-table th:nth-child(3),
 .full-table td:nth-child(3) {
-  width: 8%;
+  width: 15%;
 }
 
 .full-table th:nth-child(4),
 .full-table td:nth-child(4) {
-  width: 12%;
-}
-
-.full-table th:nth-child(5),
-.full-table td:nth-child(5) {
-  width: 30%;
+  width: 20%;
 }
 
 .loading {
@@ -709,33 +726,5 @@ h1 {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
-}
-.direction-input {
-  display: flex;
-  gap: 10px;
-}
-
-.direction-input select,
-.direction-input input {
-  flex: 1;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 16px;
-}
-
-.direction-input select:focus,
-.direction-input input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-.ai-message {
-  background: #e8eaf6;
-  padding: 12px 15px;
-  border-radius: 8px;
-  margin-top: 15px;
-  border-left: 4px solid #667eea;
-  font-size: 14px;
-  color: #333;
 }
 </style>
