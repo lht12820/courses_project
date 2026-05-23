@@ -32,6 +32,10 @@
           <option v-for="p in professions" :key="p" :value="p">{{ p }}</option>
         </select>
         <small>不同专业的课程库和培养方向不同</small>
+        <div v-if="showCreditsHint" class="credits-hint">
+    💡 第{{ form.semester }}学期规划，专业方向选修课总学分要求：
+    {{ creditsRequirement[form.profession]?.min }} - {{ creditsRequirement[form.profession]?.max }} 学分
+        </div>
       </div>
 
       <div class="form-group">
@@ -343,8 +347,33 @@ const getTypeClass = (type) => {
   return 'other'
 }
 
+// 学分要求配置
+const creditsRequirement = {
+  '计算机科学与技术': { min: 23, max: 25 },
+  '网络空间安全': { min: 13, max: 15 },
+  '数据科学与大数据技术': { min: 20.5, max: 22.5 },
+  '人工智能': { min: 22, max: 24 }
+}
+
+// 是否显示学分提示（仅第1、2学期显示）
+const showCreditsHint = computed(() => {
+  return form.value.semester <= 2
+})
+
+// 初始化方向选项的函数
+const initDirectionOptions = () => {
+  const directionsMap = {
+    '计算机科学与技术': ['操作系统', '编译原理', '嵌入式', '图形学'],
+    '网络空间安全': ['密码学', '网络防御', '内容安全', '区块链'],
+    '数据科学与大数据技术': ['数据挖掘', '分布式计算', '可视化', '数据治理'],
+    '人工智能': ['机器学习', '计算机视觉', '自然语言处理', '模式识别']
+  }
+  directionOptions.value = directionsMap[form.value.profession] || []
+}
+
 onMounted(() => {
   loadCourseStats()
+  initDirectionOptions()
 })
 </script>
 
@@ -726,5 +755,15 @@ h1 {
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
+}
+
+.credits-hint {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fff8e1;
+  border-left: 3px solid #ffc107;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #856404;
 }
 </style>

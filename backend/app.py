@@ -48,6 +48,14 @@ PROFESSION_DIRECTIONS_MAP = {
     '人工智能': ['机器学习', '计算机视觉', '自然语言处理', '模式识别']
 }
 
+# 专业与专业方向选修课总学分要求（仅第1、2学期生效）
+PROFESSION_CREDITS_REQUIREMENT = {
+    '计算机科学与技术': {'min': 23, 'max': 25},
+    '网络空间安全': {'min': 13, 'max': 15},
+    '数据科学与大数据技术': {'min': 20.5, 'max': 22.5},
+    '人工智能': {'min': 22, 'max': 24}
+}
+
 def get_courses_by_profession(profession):
     """根据专业名称加载对应的课程数据"""
     filename = PROFESSION_DATA_MAP.get(profession, 'CS_courses.csv')
@@ -186,7 +194,7 @@ def build_ai_prompt(courses, user_input, electives_taken):
 
 ## 规划规则
 1. **强制要求**：新生项目课、面向对象程序设计课、学科前沿课，三类课程各必选且仅选1门
-2. **学期限制**：每学期最多从课程库里选2门课程（可以不选）
+2. **学期限制**：每学期最多从课程库里选3门课程（可以不选）
 3. **开课学期**：只能选择开课学期 >= 当前学期的课程
 4. **方向匹配**：优先选择与学生培养方向匹配的专业方向选修课
 5. **学分平衡**：各学期学分分布尽量均衡
@@ -230,7 +238,7 @@ def build_courses_snapshot(courses):
     snapshot.sort(key=lambda x: (x['semester'], x['name'], x['type']))
     return snapshot
 
-def build_system_prompt(courses_snapshot, profession):
+def build_system_prompt(courses_snapshot, profession,semester):
     """
     构建 system prompt（静态部分，包含完整课程库和专业信息）
     """
@@ -251,7 +259,21 @@ def build_system_prompt(courses_snapshot, profession):
     for cat in courses_by_type:
         courses_by_type[cat].sort(key=lambda x: (x['name'], x['semester']))
     
+     # 获取学分要求
+    credits_req = PROFESSION_CREDITS_REQUIREMENT.get(profession, {'min': 0, 'max': 0})
+    
+    # 判断是否需要添加学分要求（仅第1、2学期）
+    if semester <= 2:
+        credits_constraint = f"""
+## 学分要求（重要！）
+- 专业方向选修课总学分必须在 {credits_req['min']} - {credits_req['max']} 学分之间
+- 请确保规划的所有专业方向选修课学分之和满足此要求"""
+    else:
+        credits_constraint = ""
+    
     system_prompt = f"""你是一个{profession}专业的课程规划专家。请严格根据以下完整课程库和规划规则，为学生制定剩余的选修课程规划。
+
+    
 
 ## 专业信息
 - 所属专业：{profession}
@@ -271,10 +293,11 @@ def build_system_prompt(courses_snapshot, profession):
 
 ## 规划规则
 1. **强制要求**：新生项目课、面向对象程序设计课、学科前沿课，三类课程各必选且仅选1门
-2. **学期限制**：每学期最多从课程库里选2门课程（可以不选）
+2. **学期限制**：每学期最多从课程库里选**3门课程**（可以不选）  # 改为3门
 3. **开课学期**：只能选择开课学期 >= 当前学期的课程（重要！）
 4. **方向匹配**：优先选择与学生培养方向匹配的专业方向选修课
 5. **学分平衡**：各学期学分分布尽量均衡
+{credits_constraint}
 
 ## 输出格式
 请严格按照以下 JSON 格式输出，不要添加任何额外文字：
@@ -378,7 +401,7 @@ def ai_plan():
         courses_snapshot = build_courses_snapshot(courses)
         
         # 构建 system prompt（包含专业信息）
-        system_prompt = build_system_prompt(courses_snapshot, profession)
+        system_prompt = build_system_prompt(courses_snapshot, profession, user_input['semester'])
         
         # 构建 user prompt
         user_prompt = build_user_prompt(user_input, electives_taken)
